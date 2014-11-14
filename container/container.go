@@ -2,11 +2,16 @@ package container
 
 import (
 	"io"
-
+	"log"
 	"net/http"
 
 	"github.com/cloudfoundry-incubator/garden/api"
 	"github.com/pivotal-cf-experimental/garden-dot-net/process"
+
+	"fmt"
+	"time"
+
+	"code.google.com/p/go.net/websocket"
 )
 
 type container struct {
@@ -61,6 +66,7 @@ func (container *container) CurrentBandwidthLimits() (api.BandwidthLimits, error
 func (container *container) LimitCPU(limits api.CPULimits) error {
 	return nil
 }
+
 func (container *container) CurrentCPULimits() (api.CPULimits, error) {
 	return api.CPULimits{}, nil
 }
@@ -87,7 +93,16 @@ func (container *container) NetOut(network string, port uint32) error {
 	return nil
 }
 
-func (container *container) Run(api.ProcessSpec, api.ProcessIO) (api.Process, error) {
+func (container *container) Run(processSpec api.ProcessSpec, processIO api.ProcessIO) (api.Process, error) {
+	origin := "http://localhost/"
+	url := "ws://localhost:2000/websocket"
+	ws, err := websocket.Dial(url, "", origin)
+	if err != nil {
+		log.Fatal(err)
+	}
+	fmt.Println("Jane")
+	websocket.JSON.Send(ws, processSpec)
+	time.Sleep(1 * time.Second)
 	return process.DotNetProcess{}, nil
 }
 
