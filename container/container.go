@@ -11,6 +11,8 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/pivotal-golang/lager"
+
 	"github.com/cloudfoundry-incubator/garden/api"
 	"github.com/pivotal-cf-experimental/garden-dot-net/process"
 
@@ -53,11 +55,48 @@ func (container *container) Info() (api.ContainerInfo, error) {
 }
 
 func (container *container) StreamIn(dstPath string, tarStream io.Reader) error {
-	url := container.containerizerURL.String() + "/api/containers/" + container.Handle() + "/files?destination=" + dstPath
+	urlString := container.containerizerURL.String() + "/api/containers/" + container.Handle() + "/files?destination=" + dstPath
 
-	req, err := http.NewRequest("PUT", url, tarStream)
+	// req, err := http.NewRequest("PUT", url, tarStream)
+	// if err != nil {
+	// 	return err
+	// }
+
+	u, err := url.Parse(urlString)
 	if err != nil {
 		return err
+	}
+
+	// tStream, writer := io.Pipe()
+	// go func() {
+	// 	for i := 0; i < 10; i++ {
+	// 		fmt.Printf("Sending Hi\n")
+	// 		io.WriteString(writer, "Hi")
+	// 		time.Sleep(100 * time.Millisecond)
+	// 	}
+	// 	writer.Close()
+	// }()
+
+	r, w := io.Pipe()
+	go func() {
+		_, err = io.Copy(w, tarStream)
+		if err == nil {
+			w.Close()
+		}
+	}()
+	// go io.Copy(os.Stdout, tarStream)
+
+	req := &http.Request{
+		Method:           "PUT",
+		ProtoMajor:       1,
+		ProtoMinor:       1,
+		URL:              u,
+		TransferEncoding: []string{"chunked"},
+		Header: map[string][]string{
+			"Content-Type": {"application/octet-stream"},
+			"Connection":   {"keep-alive"},
+		},
+		Body: r,
 	}
 	_, err = http.DefaultClient.Do(req)
 
@@ -136,8 +175,11 @@ func (container *container) containerizerWS() string {
 }
 
 func (container *container) Run(processSpec api.ProcessSpec, processIO api.ProcessIO) (api.Process, error) {
+	logger := lager.NewLogger("outcoolstring")
+	logger.Error("hi", nil)
 	origin := "http://localhost/"
 	wsUri := container.containerizerWS() + "/api/containers/" + container.handle + "/run"
+
 	ws, err := websocket.Dial(wsUri, "", origin)
 	if err != nil {
 		return nil, err

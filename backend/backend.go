@@ -17,6 +17,10 @@ type dotNetBackend struct {
 	containerizerURL url.URL
 }
 
+type createContainerResponse struct {
+	Handle string `json:"id"`
+}
+
 func NewDotNetBackend(containerizerURL string) (*dotNetBackend, error) {
 	u, err := url.Parse(containerizerURL)
 	if err != nil {
@@ -46,34 +50,52 @@ func (dotNetBackend *dotNetBackend) Ping() error {
 }
 
 func (dotNetBackend *dotNetBackend) Capacity() (api.Capacity, error) {
-	capacity := api.Capacity{}
+	// ## FIXME
+	capacity := api.Capacity{
+		MemoryInBytes: 4 * 1024 * 1024 * 1024,  // 4Gb
+		DiskInBytes:   40 * 1024 * 1024 * 1024, // 40Gb
+		MaxContainers: 10,
+	}
 	return capacity, nil
 }
 
 func (dotNetBackend *dotNetBackend) Create(containerSpec api.ContainerSpec) (api.Container, error) {
-	netContainer := container.NewContainer(dotNetBackend.containerizerURL, "containerhandle")
 	url := dotNetBackend.containerizerURL.String() + "/api/containers"
 	containerSpecJSON, err := json.Marshal(containerSpec)
 	if err != nil {
 		return nil, err
 	}
-	_, err = http.Post(url, "application/json", strings.NewReader(string(containerSpecJSON)))
+	response, err := http.Post(url, "application/json", strings.NewReader(string(containerSpecJSON)))
 	if err != nil {
-		return netContainer, err
+		return nil, err
 	}
+
+	body, err := ioutil.ReadAll(response.Body)
+	if err != nil {
+		return nil, err
+	}
+	responseData := createContainerResponse{}
+	err = json.Unmarshal(body, &responseData)
+	if err != nil {
+		return nil, err
+	}
+
+	netContainer := container.NewContainer(dotNetBackend.containerizerURL, responseData.Handle)
 	return netContainer, nil
 }
 
 func (dotNetBackend *dotNetBackend) Destroy(handle string) error {
-	url := dotNetBackend.containerizerURL.String() + "/api/containers/" + handle
+	return nil
 
-	req, err := http.NewRequest("DELETE", url, nil)
-	if err != nil {
-		return err
-	}
-	_, err = http.DefaultClient.Do(req)
+	// url := dotNetBackend.containerizerURL.String() + "/api/containers/" + handle
 
-	return err
+	// req, err := http.NewRequest("DELETE", url, nil)
+	// if err != nil {
+	// 	return err
+	// }
+	// _, err = http.DefaultClient.Do(req)
+
+	// return err
 }
 
 func (dotNetBackend *dotNetBackend) Containers(api.Properties) ([]api.Container, error) {
