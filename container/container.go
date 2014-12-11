@@ -6,6 +6,7 @@ import (
 	"io/ioutil"
 	"net/http"
 	"net/url"
+	"os"
 
 	"encoding/json"
 	"errors"
@@ -53,13 +54,35 @@ func (container *container) Info() (api.ContainerInfo, error) {
 }
 
 func (container *container) StreamIn(dstPath string, tarStream io.Reader) error {
+	fmt.Printf("Container#StreamIn : dst=%s\n", dstPath)
+
 	url := container.containerizerURL.String() + "/api/containers/" + container.Handle() + "/files?destination=" + dstPath
 
-	req, err := http.NewRequest("PUT", url, tarStream)
+	// req, err := http.NewRequest("POST", url, tarStream)
+	// req.Header.Add("Content-Type", "application/octet-stream")
+	// // req.Header.Add("Content-Length", "1562")
+	// if err != nil {
+	// 	return err
+	// }
+	// _, err = http.DefaultClient.Do(req)
+
+	w, err := os.Create("/tmp/tarStream.tgz")
 	if err != nil {
 		return err
 	}
-	_, err = http.DefaultClient.Do(req)
+	n, err := io.Copy(w, tarStream)
+	if err != nil {
+		return err
+	}
+	fmt.Printf("Container#StreamIn : Wrote %d bytes\n", n)
+
+	r, err := os.Open("/tmp/tarStream.tgz")
+	if err != nil {
+		return err
+	}
+
+	res, err := http.Post(url, "application/octet-stream", r)
+	fmt.Printf("%+v", res)
 
 	return err
 }
