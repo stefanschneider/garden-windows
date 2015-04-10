@@ -2,23 +2,29 @@ package lifecycle_test
 
 import (
 	"fmt"
+	"log"
 	"os"
 	"os/exec"
 	"syscall"
 	"testing"
+	"time"
 
 	"github.com/cloudfoundry-incubator/garden"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 	"github.com/onsi/gomega/gexec"
 	"github.com/tedsuo/ifrit"
+	"github.com/tedsuo/ifrit/ginkgomon"
+	"github.com/tedsuo/ifrit/grouper"
 
-	"github.com/cloudfoundry-incubator/garden-windows/integration/runner"
+	"github.com/cloudfoundry-incubator/garden-windows/integration/garden_runner"
 )
 
 var gardenBin string
 
-var gardenRunner *runner.Runner
+var containerizerBin = os.Getenv("CONTAINERIZER_BIN")
+var containerizerRunner ifrit.Runner
+var gardenRunner *garden_runner.Runner
 var gardenProcess ifrit.Process
 
 var client garden.Client
@@ -27,9 +33,23 @@ func startGarden(argv ...string) garden.Client {
 	gardenAddr := fmt.Sprintf("127.0.0.1:4567")
 
 	tmpDir := os.TempDir()
-	gardenRunner = runner.New("tcp4", gardenAddr, tmpDir, gardenBin, "http://127.0.0.1:8080")
 
-	gardenProcess = ifrit.Invoke(gardenRunner)
+	gardenRunner = garden_runner.New("tcp4", gardenAddr, tmpDir, gardenBin, "http://127.0.0.1:8080")
+	containerizerRunner = ginkgomon.New(ginkgomon.Config{
+		Name:              "containerizer",
+		Command:           exec.Command(containerizerBin, "127.0.0.1", "8080"),
+		AnsiColorCode:     "",
+		StartCheck:        "Control-C to quit.",
+		StartCheckTimeout: 10 * time.Second,
+		Cleanup:           func() {},
+	})
+
+	group := grouper.NewOrdered(syscall.SIGTERM, []grouper.Member{
+		{Name: "containerizer", Runner: containerizerRunner},
+		{Name: "garden", Runner: gardenRunner},
+	})
+
+	gardenProcess = ifrit.Invoke(group)
 
 	return gardenRunner.NewClient()
 }
@@ -50,6 +70,11 @@ func ensureGardenRunning() {
 }
 
 func TestLifecycle(t *testing.T) {
+	if containerizerBin == "" {
+		log.Println("CONTAINERIZER_BIN undefined; skipping")
+		return
+	}
+
 	SynchronizedBeforeSuite(func() []byte {
 		gardenPath, err := gexec.Build("github.com/cloudfoundry-incubator/garden-windows", "-a", "-race", "-tags", "daemon")
 		Expect(err).ShouldNot(HaveOccurred())
