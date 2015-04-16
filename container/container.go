@@ -226,15 +226,17 @@ func (container *container) Run(processSpec garden.ProcessSpec, processIO garden
 	})
 
 	proc := process.NewDotNetProcess()
+	pidChannel := make(chan uint32)
 
 	streamWebsocketIOToContainerizer(ws, processIO)
 	go func() {
-		exitCode, err := streamWebsocketIOFromContainerizer(ws, processIO)
+		exitCode, err := streamWebsocketIOFromContainerizer(ws, pidChannel, processIO)
 		proc.StreamOpen <- process.DotNetProcessExitStatus{exitCode, err}
 		close(proc.StreamOpen)
 	}()
 
 	// CLOSE WS SOMEWHERE ;; defer ws.Close() ;; FIXME
+	proc.Id = <-pidChannel
 
 	return proc, nil
 }
@@ -320,12 +322,20 @@ func streamWebsocketIOToContainerizer(ws *websocket.Conn, processIO garden.Proce
 	}
 }
 
-func streamWebsocketIOFromContainerizer(ws *websocket.Conn, processIO garden.ProcessIO) (int, error) {
+func streamWebsocketIOFromContainerizer(ws *websocket.Conn, pidChannel chan uint32, processIO garden.ProcessIO) (int, error) {
 	receiveStream := ProcessStreamEvent{}
 	for {
 		err := websocket.ReadJSON(ws, &receiveStream)
 		if err != nil {
 			return -1, err
+		}
+
+		if receiveStream.MessageType == "pid" {
+			pid, err := strconv.ParseInt(receiveStream.Data, 10, 32)
+			if err == nil {
+				pidChannel <- uint32(pid)
+			}
+			close(pidChannel)
 		}
 
 		if receiveStream.MessageType == "stdout" && processIO.Stdout != nil {

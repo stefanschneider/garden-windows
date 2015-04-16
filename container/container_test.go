@@ -1,6 +1,9 @@
 package container_test
 
 import (
+	"log"
+	"time"
+
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 
@@ -291,10 +294,19 @@ var _ = Describe("container", func() {
 
 	Describe("#Run (and input / output / error streams)", func() {
 		var testServer *TestWebSocketServer
+		var sendPidOnWebsocket func()
 
 		BeforeEach(func() {
 			testServer = &TestWebSocketServer{}
 			testServer.Start("containerhandle")
+
+			sendPidOnWebsocket = func() {
+				time.Sleep(10 * time.Millisecond)
+				websocket.WriteJSON(testServer.handlerWS, netContainer.ProcessStreamEvent{
+					MessageType: "pid",
+					Data:        "678",
+				})
+			}
 		})
 
 		JustBeforeEach(func() {
@@ -328,6 +340,7 @@ var _ = Describe("container", func() {
 					Stack:      uint64ptr(15),
 				},
 			}
+			go sendPidOnWebsocket()
 			_, err := container.Run(processSpec, garden.ProcessIO{})
 
 			Expect(err).ShouldNot(HaveOccurred())
@@ -339,8 +352,19 @@ var _ = Describe("container", func() {
 			}))
 		})
 
+		It("returns a process with an Id", func() {
+			stdout := gbytes.NewBuffer()
+			go sendPidOnWebsocket()
+			process, err := container.Run(garden.ProcessSpec{}, garden.ProcessIO{
+				Stdout: stdout,
+			})
+			Expect(err).ShouldNot(HaveOccurred())
+			Expect(process.ID()).To(Equal(uint32(678)))
+		})
+
 		It("streams stdout from the websocket back through garden", func() {
 			stdout := gbytes.NewBuffer()
+			go sendPidOnWebsocket()
 			_, err := container.Run(garden.ProcessSpec{}, garden.ProcessIO{
 				Stdout: stdout,
 			})
@@ -355,6 +379,7 @@ var _ = Describe("container", func() {
 
 		It("streams stderr from the websocket back through garden", func() {
 			stderr := gbytes.NewBuffer()
+			go sendPidOnWebsocket()
 			_, err := container.Run(garden.ProcessSpec{}, garden.ProcessIO{
 				Stderr: stderr,
 			})
@@ -370,6 +395,7 @@ var _ = Describe("container", func() {
 		It("seperates stdout and stderr streams from the websocket", func() {
 			stdout := gbytes.NewBuffer()
 			stderr := gbytes.NewBuffer()
+			go sendPidOnWebsocket()
 			_, err := container.Run(garden.ProcessSpec{}, garden.ProcessIO{
 				Stdout: stdout,
 				Stderr: stderr,
@@ -389,12 +415,14 @@ var _ = Describe("container", func() {
 			Eventually(stderr).Should(gbytes.Say("error from windows"))
 		})
 
-		It("streams stdin over the websocket", func() {
+		FIt("streams stdin over the websocket", func(done Done) {
 			stdin := gbytes.NewBuffer()
-
+			go sendPidOnWebsocket()
+			log.Println("Pre Run")
 			_, err := container.Run(garden.ProcessSpec{}, garden.ProcessIO{
 				Stdin: stdin,
 			})
+			log.Println("Post Run")
 			Expect(err).ShouldNot(HaveOccurred())
 
 			stdin.Write([]byte("a message"))
@@ -407,9 +435,10 @@ var _ = Describe("container", func() {
 			}))
 
 			stdin.Close()
-		})
+		}, 1)
 
 		It("closes the WebSocketOpen channel on the proc when a close event is received", func() {
+			go sendPidOnWebsocket()
 			proc, err := container.Run(garden.ProcessSpec{}, garden.ProcessIO{})
 			Expect(err).ShouldNot(HaveOccurred())
 
@@ -421,6 +450,7 @@ var _ = Describe("container", func() {
 		})
 
 		It("returns the close message as the exit code", func() {
+			go sendPidOnWebsocket()
 			proc, err := container.Run(garden.ProcessSpec{}, garden.ProcessIO{})
 			Expect(err).ShouldNot(HaveOccurred())
 
@@ -436,6 +466,7 @@ var _ = Describe("container", func() {
 
 		Context("when we receive an error on the channel", func() {
 			It("returns the error", func(done Done) {
+				go sendPidOnWebsocket()
 				proc, err := container.Run(garden.ProcessSpec{}, garden.ProcessIO{})
 				Expect(err).ShouldNot(HaveOccurred())
 
@@ -452,6 +483,7 @@ var _ = Describe("container", func() {
 			}, 0.2)
 
 			It("closes the WebSocketOpen channel on the proc", func() {
+				go sendPidOnWebsocket()
 				proc, err := container.Run(garden.ProcessSpec{}, garden.ProcessIO{})
 				Expect(err).ShouldNot(HaveOccurred())
 
