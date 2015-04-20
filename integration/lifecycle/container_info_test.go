@@ -8,11 +8,9 @@ import (
 )
 
 var _ = Describe("Container information", func() {
-	var gardenArgs []string
 
 	BeforeEach(func() {
-		gardenArgs = []string{}
-		client = startGarden(gardenArgs...)
+		client = startGarden(true)
 	})
 
 	Describe("for many containers", func() {

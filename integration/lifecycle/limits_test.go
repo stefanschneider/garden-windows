@@ -27,11 +27,9 @@ func createContainer() garden.Container {
 }
 
 var _ = Describe("Process limits", func() {
-	var gardenArgs []string
 
 	BeforeEach(func() {
-		gardenArgs = []string{}
-		client = startGarden(gardenArgs...)
+		client = startGarden(true)
 	})
 
 	Describe("a started process", func() {

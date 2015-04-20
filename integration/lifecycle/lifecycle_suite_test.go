@@ -14,7 +14,6 @@ import (
 	"github.com/onsi/gomega/gexec"
 	"github.com/tedsuo/ifrit"
 	"github.com/tedsuo/ifrit/ginkgomon"
-	"github.com/tedsuo/ifrit/grouper"
 
 	garden_runner "github.com/cloudfoundry-incubator/garden-windows/integration/runner"
 )
@@ -24,46 +23,54 @@ var gardenBin string
 var containerizerBin = os.Getenv("CONTAINERIZER_BIN")
 var containerizerRunner ifrit.Runner
 var gardenRunner *garden_runner.Runner
-var gardenProcess ifrit.Process
+var gardenProcess, containerizerProcess ifrit.Process
 
 var client garden.Client
 
-func startGarden(argv ...string) garden.Client {
+func startGarden(startContainerizer bool, argv ...string) garden.Client {
 	gardenAddr := fmt.Sprintf("127.0.0.1:45607")
 
 	tmpDir := os.TempDir()
 
 	gardenRunner = garden_runner.New("tcp4", gardenAddr, tmpDir, gardenBin, "http://127.0.0.1:48080")
-	containerizerRunner = ginkgomon.New(ginkgomon.Config{
-		Name:              "containerizer",
-		Command:           exec.Command(containerizerBin, "127.0.0.1", "48080"),
-		AnsiColorCode:     "",
-		StartCheck:        "Control-C to quit.",
-		StartCheckTimeout: 10 * time.Second,
-		Cleanup:           func() {},
-	})
 
-	group := grouper.NewOrdered(syscall.SIGTERM, []grouper.Member{
-		{Name: "containerizer", Runner: containerizerRunner},
-		{Name: "garden", Runner: gardenRunner},
-	})
+	if startContainerizer {
+		containerizerRunner = ginkgomon.New(ginkgomon.Config{
+			Name:              "containerizer",
+			Command:           exec.Command(containerizerBin, "127.0.0.1", "48080"),
+			AnsiColorCode:     "",
+			StartCheck:        "Control-C to quit.",
+			StartCheckTimeout: 10 * time.Second,
+			Cleanup:           func() {},
+		})
+		containerizerProcess = ifrit.Invoke(containerizerRunner)
+		Eventually(containerizerProcess.Ready())
+	}
 
-	gardenProcess = ifrit.Invoke(group)
+	// group := grouper.NewOrdered(syscall.SIGTERM, []grouper.Member{
+	// 	{Name: "containerizer", Runner: containerizerRunner},
+	// 	{Name: "garden", Runner: gardenRunner},
+	// })
+
+	gardenProcess = ifrit.Invoke(gardenRunner)
+	Eventually(gardenProcess.Ready())
 
 	return gardenRunner.NewClient()
 }
 
-func restartGarden(argv ...string) {
+func restartGarden(argv ...string) garden.Client {
 	Expect(client.Ping()).Should(Succeed(), "tried to restart garden while it was not running")
-	gardenProcess.Signal(syscall.SIGTERM)
+	gardenProcess.Signal(syscall.SIGKILL)
+	fmt.Printf("################ before wait()\n")
 	Eventually(gardenProcess.Wait(), 10).Should(Receive())
+	fmt.Printf("################ after wait()\n")
 
-	startGarden(argv...)
+	return startGarden(false, argv...)
 }
 
 func ensureGardenRunning() {
 	if err := client.Ping(); err != nil {
-		client = startGarden()
+		client = startGarden(true)
 	}
 	Expect(client.Ping()).ShouldNot(HaveOccurred())
 }
@@ -83,6 +90,8 @@ func TestLifecycle(t *testing.T) {
 		ensureGardenRunning()
 		gardenProcess.Signal(syscall.SIGKILL)
 		Eventually(gardenProcess.Wait(), 10).Should(Receive())
+		containerizerProcess.Signal(syscall.SIGKILL)
+		Eventually(containerizerProcess.Wait(), 10).Should(Receive())
 	})
 
 	SynchronizedAfterSuite(func() {
