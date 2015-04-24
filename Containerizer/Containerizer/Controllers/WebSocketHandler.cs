@@ -7,6 +7,7 @@ using System.Net.WebSockets;
 using System.Text;
 using System.Threading.Tasks;
 using Containerizer.Models;
+using Containerizer.Services.Implementations;
 using IronFrame;
 using Microsoft.Web.WebSockets;
 using Newtonsoft.Json;
@@ -18,36 +19,17 @@ using Logger;
 
 namespace Containerizer.Controllers
 {
-    public interface IWebSocketEventSender
-    {
-        void SendEvent(string messageType, string message);
-
-        Task Close(WebSocketCloseStatus status, string reason);
-    }
-
-    public class ContainerProcessHandler : WebSocketConnection, IWebSocketEventSender
+    public class WebSocketHandler : WebSocketConnection
     {
         private readonly IContainerService containerService;
         private readonly IRunService runService;
         private readonly ILogger logger;
 
-        public ContainerProcessHandler(IContainerService containerService, IRunService runService, ILogger logger)
+        public WebSocketHandler(IContainerService containerService, IRunService runService, ILogger logger)
         {
             this.containerService = containerService;
             this.runService = runService;
             this.logger = logger;
-        }
-
-        public void SendEvent(string messageType, string message)
-        {
-            logger.Info("SendEvent: {0} :: {1}", messageType, message);
-            var jsonString = JsonConvert.SerializeObject(new ProcessStreamEvent
-            {
-                MessageType = messageType,
-                Data = message
-            }, Formatting.None);
-            var data = new UTF8Encoding(true).GetBytes(jsonString);
-            SendText(data, true);
         }
 
         public override void OnOpen()
@@ -68,6 +50,7 @@ namespace Containerizer.Controllers
             logger.Error("OnReceiveError: {0}", error.Message);
         }
 
+
         public override Task OnMessageReceived(ArraySegment<byte> message, WebSocketMessageType type)
         {
             var bytes = new UTF8Encoding(true).GetString(message.Array, 0, message.Count);
@@ -75,9 +58,10 @@ namespace Containerizer.Controllers
 
             if (streamEvent.MessageType == "run" && streamEvent.ApiProcessSpec != null)
             {
-                runService.Run(this, streamEvent.ApiProcessSpec);
+                runService.Run(new WebSocketProxy(this), streamEvent.ApiProcessSpec);
             }
             return null;
         }
     }
+
 }

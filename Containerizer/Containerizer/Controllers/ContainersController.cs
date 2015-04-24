@@ -79,7 +79,7 @@ namespace Containerizer.Controllers
                     Handle = container.Handle
                 };
             }
-            catch (PrincipalExistsException ex)
+            catch (PrincipalExistsException)
             {
                 var response = new HttpResponseMessage(HttpStatusCode.Conflict)
                 {

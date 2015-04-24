@@ -52,7 +52,7 @@ namespace Containerizer
             containerBuilder.RegisterType<LimitsController>();
             containerBuilder.RegisterType<InfoController>();
             containerBuilder.RegisterType<BulkInfoController>();
-            containerBuilder.RegisterType<ContainerProcessHandler>();
+            containerBuilder.RegisterType<WebSocketHandler>();
             container = containerBuilder.Build();
         }
 

@@ -1,12 +1,14 @@
 ﻿#region
 
 using System;
+using System.IO;
 using Containerizer.Services.Implementations;
 using NSpec;
 using IronFrame;
 using Moq;
 using Containerizer.Controllers;
 using Containerizer.Models;
+using Containerizer.Services.Interfaces;
 
 #endregion
 
@@ -16,14 +18,14 @@ namespace Containerizer.Tests.Specs.Services
     {
         private void describe_Run()
         {
-            Mock<IWebSocketEventSender> websocketMock = null;
+            Mock<IProcessProxy> websocketMock = null;
             Mock<IContainer> containerMock = null;
             Mock<IContainerProcess> processMock = null;
             RunService runService = null;
 
             before = () =>
             {
-                websocketMock = new Mock<IWebSocketEventSender>();
+                websocketMock = new Mock<IProcessProxy>();
                 containerMock = new Mock<IContainer>();
                 processMock = new Mock<IContainerProcess>();
 
@@ -44,7 +46,7 @@ namespace Containerizer.Tests.Specs.Services
 
                 it["sends the process pid on the websocket"] = () =>
                 {
-                    websocketMock.Verify(x => x.SendEvent("pid", "5432"));
+                    websocketMock.Verify(x => x.SetProcessPid(5432));
                 };
             };
 
@@ -61,8 +63,9 @@ namespace Containerizer.Tests.Specs.Services
                         var apiProcessSpec = new ApiProcessSpec();
                         runService.Run(websocketMock.Object, apiProcessSpec);
 
-                        websocketMock.Verify(x => x.SendEvent("close", "1"));
-                        websocketMock.Verify(x => x.Close(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, "process finished"));
+                        websocketMock.Verify(x => x.ProcessExited(1));
+                        //websocketMock.Verify(x => x.SendEvent("close", "1"));
+                        //websocketMock.Verify(x => x.Close(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, "process finished"));
                     };
                 };
 
@@ -75,19 +78,21 @@ namespace Containerizer.Tests.Specs.Services
                         var apiProcessSpec = new ApiProcessSpec();
                         runService.Run(websocketMock.Object, apiProcessSpec);
 
-                        websocketMock.Verify(x => x.SendEvent("close", "0"));
-                        websocketMock.Verify(x => x.Close(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, "process finished"));
+                        websocketMock.Verify(x => x.ProcessExited(0));
+                        //websocketMock.Verify(x => x.SendEvent("close", "0"));
+                        //websocketMock.Verify(x => x.Close(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, "process finished"));
                     };
                 };
             };
 
             context["Process throws an exception while running"] = () =>
             {
+                var ex = new Exception("Running is hard");
                 before = () =>
                 {
                     containerMock.Setup(x => x.Run(It.IsAny<ProcessSpec>(), It.IsAny<IProcessIO>()))
                         .Returns(processMock.Object);
-                    processMock.Setup(x => x.WaitForExit()).Throws(new Exception("Running is hard"));
+                    processMock.Setup(x => x.WaitForExit()).Throws(ex);
                 };
 
                 it["sends a close event with data == '-1'"] = () =>
@@ -95,22 +100,24 @@ namespace Containerizer.Tests.Specs.Services
                     var apiProcessSpec = new ApiProcessSpec();
                     runService.Run(websocketMock.Object, apiProcessSpec);
 
-                    websocketMock.Verify(x => x.SendEvent("close", "-1"));
-                    websocketMock.Verify(x => x.Close(System.Net.WebSockets.WebSocketCloseStatus.InternalServerError, "Running is hard"));
+                    websocketMock.Verify(x => x.ProcessExitedWithError(ex));
+                    //websocketMock.Verify(x => x.SendEvent("close", "-1"));
+                    //websocketMock.Verify(x => x.Close(System.Net.WebSockets.WebSocketCloseStatus.InternalServerError, "Running is hard"));
                 };
             };
 
             context["container#run throws an exception"] = () =>
             {
-                before = () => containerMock.Setup(x => x.Run(It.IsAny<ProcessSpec>(), It.IsAny<IProcessIO>())).Throws(new Exception("filename doesn't exist"));
+                var ex = new Exception("filename doesn't exist");
+                before = () => containerMock.Setup(x => x.Run(It.IsAny<ProcessSpec>(), It.IsAny<IProcessIO>())).Throws(ex);
 
                 it["sends an error event"] = () =>
                 {
                     var apiProcessSpec = new ApiProcessSpec();
                     runService.Run(websocketMock.Object, apiProcessSpec);
-
-                    websocketMock.Verify(x => x.SendEvent("error", "filename doesn't exist"));
-                    websocketMock.Verify(x => x.Close(System.Net.WebSockets.WebSocketCloseStatus.InternalServerError, "filename doesn't exist"));
+                    websocketMock.Verify(x => x.ProcessExitedWithError(ex));
+                    //websocketMock.Verify(x => x.SendEvent("error", "filename doesn't exist"));
+                    //websocketMock.Verify(x => x.Close(System.Net.WebSockets.WebSocketCloseStatus.InternalServerError, "filename doesn't exist"));
                 };
             };
 

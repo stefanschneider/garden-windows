@@ -13,7 +13,7 @@ namespace Containerizer.Services.Implementations
     {
         public IContainer container { get; set; }
 
-        public void Run(Controllers.IWebSocketEventSender websocket, Models.ApiProcessSpec apiProcessSpec)
+        public void Run(IProcessProxy proxy, Models.ApiProcessSpec apiProcessSpec)
         {
 
             var processSpec = NewProcessSpec(apiProcessSpec);
@@ -25,41 +25,36 @@ namespace Containerizer.Services.Implementations
                 OverrideEnvPort(processSpec, info);
             }
 
-            var process = Run(websocket, processSpec);
-            if (process != null)
-                WaitForExit(websocket, process);
+            try
+            {
+                var process = Run(proxy, processSpec);
+                proxy.SetProcessPid(process.Id);
+                if (process != null)
+                    WaitForExit(proxy, process);
+            }
+            catch (Exception ex)
+            {
+                proxy.ProcessExitedWithError(ex);
+            }
         }
 
-        private static void WaitForExit(IWebSocketEventSender websocket, IContainerProcess process)
+        private static void WaitForExit(IProcessProxy proxy, IContainerProcess process)
         {
             try
             {
                 var exitCode = process.WaitForExit();
-                websocket.SendEvent("close", exitCode.ToString());
-                websocket.Close(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, "process finished");
+                proxy.ProcessExited(exitCode);
             }
             catch (Exception e)
             {
-                websocket.SendEvent("close", "-1");
-                websocket.Close(System.Net.WebSockets.WebSocketCloseStatus.InternalServerError, e.Message);
+                proxy.ProcessExitedWithError(e);
             }
         }
 
-        private IContainerProcess Run(IWebSocketEventSender websocket, ProcessSpec processSpec)
+        private IContainerProcess Run(IProcessProxy proxy, ProcessSpec processSpec)
         {
-            try
-            {
-                var processIO = new ProcessIO(websocket);
-                var process = container.Run(processSpec, processIO);
-                websocket.SendEvent("pid", process.Id.ToString());
-                return process;
-            }
-            catch (Exception e)
-            {
-                websocket.SendEvent("error", e.Message);
-                websocket.Close(System.Net.WebSockets.WebSocketCloseStatus.InternalServerError, e.Message);
-                return null;
-            }
+            var process = container.Run(processSpec, proxy);
+            return process;
         }
 
         private static void OverrideEnvPort(ProcessSpec processSpec, ContainerInfo info)
@@ -108,39 +103,8 @@ namespace Containerizer.Services.Implementations
             }
         }
 
-        private class WSWriter : TextWriter
+        public void Attach(IProcessProxy proxy, int pid)
         {
-            private readonly string streamName;
-            private readonly IWebSocketEventSender ws;
-
-            public WSWriter(string streamName, IWebSocketEventSender ws)
-            {
-                this.streamName = streamName;
-                this.ws = ws;
-            }
-
-            public override Encoding Encoding
-            {
-                get { return Encoding.Default; }
-            }
-
-            public override void Write(string value)
-            {
-                ws.SendEvent(streamName, value + "\r\n");
-            }
-        }
-
-        private class ProcessIO : IProcessIO
-        {
-            public ProcessIO(IWebSocketEventSender ws)
-            {
-                StandardOutput = new WSWriter("stdout", ws);
-                StandardError = new WSWriter("stderr", ws);
-            }
-
-            public TextWriter StandardOutput { get; set; }
-            public TextWriter StandardError { get; set; }
-            public TextReader StandardInput { get; set; }
         }
     }
 }

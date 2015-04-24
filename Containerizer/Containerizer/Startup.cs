@@ -38,7 +38,7 @@ namespace Containerizer
             // Make sure the Autofac lifetime scope is passed to Web API.
             app.UseAutofacWebApi(config);
 
-            app.MapWebSocketPattern<ContainerProcessHandler>("/api/containers/(?<handle>.*)/run", dependencyResolver);
+            app.MapWebSocketPattern<WebSocketHandler>("/api/containers/(?<handle>.*)/run", dependencyResolver);
 
             app.UseWebApi(config);
         }

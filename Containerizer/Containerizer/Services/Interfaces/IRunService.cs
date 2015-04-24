@@ -13,6 +13,6 @@ namespace Containerizer.Services.Interfaces
     {
         IContainer container { get; set; }
 
-        void Run(IWebSocketEventSender WebSocketSendText, ApiProcessSpec processSpec);
+        void Run(IProcessProxy processIO, ApiProcessSpec processSpec);
     }
 }
