@@ -89,5 +89,17 @@ namespace Containerizer.Controllers
 
             return Json(container.CurrentCpuLimit());
         }
+
+        public IHttpActionResult LimitDisk(string handle, int bytes)
+        {
+            var container = containerService.GetContainerByHandle(handle);
+            if (container == null)
+            {
+                return NotFound();
+            }
+
+            container.LimitDisk(bytes);
+            return Ok();
+        }
     }
 }

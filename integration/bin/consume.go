@@ -23,7 +23,7 @@ func bigBytes() ArrayBytes {
 
 func main() {
 	if len(os.Args) == 1 {
-		fmt.Println("Usage: consume [fork] [cpu [duration]|memory [megabytes]]")
+		fmt.Println("Usage: consume [fork] [cpu [duration]|memory [megabytes]|disk [bytes]]")
 		os.Exit(1)
 	}
 
@@ -31,6 +31,8 @@ func main() {
 		fork(os.Args[2:])
 	} else if os.Args[1] == "memory" {
 		generateMemoryLoad(os.Args[2])
+	} else if os.Args[1] == "disk" {
+		generateDiskLoad(os.Args[2])
 	} else {
 		generateCPULoad(os.Args[2])
 	}
@@ -50,6 +52,24 @@ func fork(args []string) {
 	procState := cmd.ProcessState
 	fmt.Printf("SystemTime: %d, UserTime: %d\r\n",
 		procState.SystemTime(), procState.UserTime())
+}
+
+func generateDiskLoad(bytes string) {
+	b, err := strconv.ParseInt(bytes, 10, 64)
+	if err != nil {
+		panic(err)
+	}
+	f, err := os.Create("bar")
+	defer f.Close()
+	if err != nil {
+		panic(err)
+	}
+	data := make([]byte, b)
+	n2, err := f.Write(data)
+	if err != nil {
+		panic(err)
+	}
+	fmt.Printf("wrote %d bytes\n", n2)
 }
 
 func generateCPULoad(duration string) {

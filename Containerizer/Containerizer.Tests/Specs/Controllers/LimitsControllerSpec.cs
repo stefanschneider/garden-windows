@@ -148,6 +148,17 @@ namespace Containerizer.Tests.Specs.Controllers
                 };
             };
 
+            describe["#LimitDisk"] = () =>
+            {
+                it["sets a disk limit for the container's user"] = () =>
+                {
+                    var bytes = 1000;
+                    var result = LimitsController.LimitDisk(handle, bytes);
+                    mockContainer.Verify(x => x.LimitDisk(bytes));
+                    result.should_cast_to<OkResult>();
+                };
+            };
+
         }
     }
 }

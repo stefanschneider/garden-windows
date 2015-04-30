@@ -119,5 +119,45 @@ var _ = Describe("Process limits", func() {
 				Expect(ratio).To(BeNumerically("<=", 0.7))
 			})
 		})
+
+		Describe("a disk limit", func() {
+			var container garden.Container
+			BeforeEach(func() {
+				container = createContainer()
+			})
+
+			AfterEach(func() {
+				err := client.Destroy(container.Handle())
+				Expect(err).ShouldNot(HaveOccurred())
+			})
+
+			FIt("is enforced", func() {
+				err := container.LimitDisk(garden.DiskLimits{ByteHard: 5000})
+				Expect(err).ShouldNot(HaveOccurred())
+
+				buf := make([]byte, 0, 1024*1024)
+				stdout := bytes.NewBuffer(buf)
+
+				process, err := container.Run(garden.ProcessSpec{
+					Path: "bin/consume.exe",
+					Args: []string{"disk", "4000"},
+				}, garden.ProcessIO{Stdout: stdout})
+				Expect(err).ShouldNot(HaveOccurred())
+
+				exitCode, err := process.Wait()
+				Expect(err).ShouldNot(HaveOccurred())
+
+				process, err = container.Run(garden.ProcessSpec{
+					Path: "bin/consume.exe",
+					Args: []string{"disk", "2000"},
+				}, garden.ProcessIO{Stdout: stdout})
+				Expect(err).ShouldNot(HaveOccurred())
+
+				exitCode, err = process.Wait()
+				Expect(err).ShouldNot(HaveOccurred())
+
+				Expect(exitCode).To(Equal(1), "process did has reached the disk limit")
+			})
+		})
 	})
 })
