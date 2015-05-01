@@ -23,7 +23,7 @@ func bigBytes() ArrayBytes {
 
 func main() {
 	if len(os.Args) == 1 {
-		fmt.Println("Usage: consume [fork] [cpu [duration]|memory [megabytes]]")
+		fmt.Println("Usage: consume [fork] [cpu [duration]|memory [megabytes]|fh [number]]")
 		os.Exit(1)
 	}
 
@@ -31,6 +31,8 @@ func main() {
 		fork(os.Args[2:])
 	} else if os.Args[1] == "memory" {
 		generateMemoryLoad(os.Args[2])
+	} else if os.Args[1] == "fh" {
+		openFiles(os.Args[2])
 	} else {
 		generateCPULoad(os.Args[2])
 	}
@@ -95,5 +97,26 @@ func generateMemoryLoad(limit string) {
 	}
 
 	fmt.Println("Memory Consumed Successfully")
+	os.Exit(42)
+}
+
+func openFiles(limit string) {
+	numFiles, err := strconv.ParseInt(limit, 10, 64)
+	if err != nil {
+		fmt.Println("Usage: consume.exe fh [Number of File Handlesconsume]")
+		os.Exit(1)
+	}
+
+	var fileHandles []*os.File
+	for i := 0; i < int(numFiles); i++ {
+		f, err := os.Create("/tmp/dat2")
+		if err != nil {
+			fmt.Printf("File Open Failed (%d)\n", i)
+			os.Exit(2)
+		}
+		fileHandles = append(fileHandles, f)
+	}
+
+	fmt.Println("Files Opened Successfully")
 	os.Exit(42)
 }
