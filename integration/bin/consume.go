@@ -109,7 +109,7 @@ func openFiles(limit string) {
 
 	var fileHandles []*os.File
 	for i := 0; i < int(numFiles); i++ {
-		f, err := os.Create("/tmp/dat2")
+		f, err := os.Create(fmt.Sprintf("fh_%d", i))
 		if err != nil {
 			fmt.Printf("File Open Failed (%d)\n", i)
 			os.Exit(2)

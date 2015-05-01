@@ -119,5 +119,34 @@ var _ = Describe("Process limits", func() {
 				Expect(ratio).To(BeNumerically("<=", 0.7))
 			})
 		})
+
+		Describe("a process file handle limit", func() {
+			var container garden.Container
+			BeforeEach(func() {
+				container = createContainer()
+			})
+
+			AfterEach(func() {
+				err := client.Destroy(container.Handle())
+				Expect(err).ShouldNot(HaveOccurred())
+			})
+
+			FIt("is enforced", func() {
+				buf := make([]byte, 0, 1024*1024)
+				stdout := bytes.NewBuffer(buf)
+				var fileDescriptorLimit = uint64(50)
+
+				process, err := container.Run(garden.ProcessSpec{
+					Path:   "bin/consume.exe",
+					Args:   []string{"fh", "100"},
+					Limits: garden.ResourceLimits{Nofile: &fileDescriptorLimit},
+				}, garden.ProcessIO{Stdout: stdout})
+				Expect(err).ShouldNot(HaveOccurred())
+
+				_, err = process.Wait()
+				Expect(err).ShouldNot(HaveOccurred())
+				Expect(stdout.String()).To(ContainSubstring("File Open Failed"))
+			})
+		})
 	})
 })
