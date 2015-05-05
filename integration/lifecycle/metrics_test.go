@@ -50,18 +50,15 @@ var _ = Describe("Process limits", func() {
 
 				process, err := container.Run(garden.ProcessSpec{
 					Path: "bin/consume.exe",
-					Args: []string{"memory", "1024"},
+					Args: []string{"memory", "128"},
 				}, garden.ProcessIO{Stdout: stdout})
 				Expect(err).ShouldNot(HaveOccurred())
 
 				metrics, err := container.Metrics()
 				Expect(err).ToNot(HaveOccurred())
-				Expect(metrics.MemoryStat.Cache).To(BeNumerically(">", 0))
+				Expect(metrics.MemoryStat.PrivateBytes).To(BeNumerically(">", 0))
 
-				exitCode, err := process.Wait()
-				Expect(err).ShouldNot(HaveOccurred())
-				Expect(exitCode).ToNot(Equal(42), "process did not get OOM killed")
-				Expect(stdout.String()).To(ContainSubstring("Consumed:  3 mb"))
+				process.Wait()
 			})
 		})
 	})

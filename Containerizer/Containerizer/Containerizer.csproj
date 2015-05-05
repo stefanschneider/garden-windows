@@ -162,6 +162,7 @@
     <Compile Include="Controllers\LimitsController.cs" />
     <Compile Include="Controllers\NetController.cs" />
     <Compile Include="Controllers\PingController.cs" />
+    <Compile Include="Controllers\MetricsController.cs" />
     <Compile Include="Controllers\PropertiesController.cs" />
     <Compile Include="Factories\ContainerServiceFactory.cs" />
     <Compile Include="Filters\LogActionFilter.cs" />
