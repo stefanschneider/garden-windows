@@ -11,7 +11,7 @@ import (
 	uuid "github.com/nu7hatch/gouuid"
 )
 
-var _ = Describe("Process limits", func() {
+var _ = Describe("Metrics", func() {
 	var gardenArgs []string
 	var createContainer func() garden.Container
 
@@ -32,34 +32,32 @@ var _ = Describe("Process limits", func() {
 		client = startGarden(gardenArgs...)
 	})
 
-	FDescribe("a started process", func() {
-		Describe("a memory limit", func() {
-			var container garden.Container
-			BeforeEach(func() {
-				container = createContainer()
-			})
+	Describe("a single container", func() {
+		var container garden.Container
+		BeforeEach(func() {
+			container = createContainer()
+		})
 
-			AfterEach(func() {
-				err := client.Destroy(container.Handle())
-				Expect(err).ShouldNot(HaveOccurred())
-			})
+		AfterEach(func() {
+			err := client.Destroy(container.Handle())
+			Expect(err).ShouldNot(HaveOccurred())
+		})
 
-			It("is enforced", func() {
-				buf := make([]byte, 0, 1024*1024)
-				stdout := bytes.NewBuffer(buf)
+		It("returns memory stats", func() {
+			buf := make([]byte, 0, 1024*1024)
+			stdout := bytes.NewBuffer(buf)
 
-				process, err := container.Run(garden.ProcessSpec{
-					Path: "bin/consume.exe",
-					Args: []string{"memory", "128"},
-				}, garden.ProcessIO{Stdout: stdout})
-				Expect(err).ShouldNot(HaveOccurred())
+			process, err := container.Run(garden.ProcessSpec{
+				Path: "bin/consume.exe",
+				Args: []string{"memory", "64"},
+			}, garden.ProcessIO{Stdout: stdout})
+			Expect(err).ShouldNot(HaveOccurred())
 
-				metrics, err := container.Metrics()
-				Expect(err).ToNot(HaveOccurred())
-				Expect(metrics.MemoryStat.PrivateBytes).To(BeNumerically(">", 0))
+			metrics, err := container.Metrics()
+			Expect(err).ToNot(HaveOccurred())
+			Expect(metrics.MemoryStat.TotalBytesUsed).To(BeNumerically(">", 0))
 
-				process.Wait()
-			})
+			process.Wait()
 		})
 	})
 })

@@ -39,9 +39,9 @@ namespace Containerizer.Tests.Specs.Controllers
                 containerHandle = Guid.NewGuid().ToString();
                 containerMetrics = new ContainerMetricsApiModel
                 {
-                    MemoryStat = new ContainerMemoryStat
+                    MemoryStat = new ContainerMemoryStatApiModel
                     {
-                        PrivateBytes = privateBytes
+                        TotalBytesUsed = privateBytes
                     }
                 };
 

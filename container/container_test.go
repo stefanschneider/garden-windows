@@ -630,7 +630,7 @@ var _ = Describe("container", func() {
 				)
 			})
 
-			FIt("makes a call out to an external service", func() {
+			It("makes a call out to an external service", func() {
 				metrics, err := container.Metrics()
 				Expect(err).NotTo(HaveOccurred())
 				Expect(server.ReceivedRequests()).Should(HaveLen(1))
@@ -649,7 +649,7 @@ var _ = Describe("container", func() {
 				)
 			})
 
-			FIt("makes a call out to an external service", func() {
+			It("makes a call out to an external service", func() {
 				_, err := container.Metrics()
 				Expect(err).To(HaveOccurred())
 			})

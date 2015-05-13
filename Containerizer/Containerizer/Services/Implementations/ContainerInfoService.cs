@@ -55,7 +55,10 @@ namespace Containerizer.Services.Implementations
 
             return new ContainerMetricsApiModel
             {
-                MemoryStat = info.MemoryStat
+                MemoryStat = new ContainerMemoryStatApiModel
+                {
+                   TotalBytesUsed = info.MemoryStat.PrivateBytes
+                }
             };
         }
     }

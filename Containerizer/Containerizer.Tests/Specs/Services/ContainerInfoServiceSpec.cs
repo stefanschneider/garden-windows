@@ -99,7 +99,7 @@ namespace Containerizer.Tests.Specs.Services
 
                 it["returns memory metrics about the container"] = () =>
                 {
-                    result.MemoryStat.PrivateBytes.should_be(privateBytes);
+                    result.MemoryStat.TotalBytesUsed.should_be(privateBytes);
                 };
 
                 context["when the container does not exist"] = () =>
