@@ -1,4 +1,5 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
 using Moq;
 using NSpec;
 using Containerizer.Models;
@@ -86,12 +87,17 @@ namespace Containerizer.Tests.Specs.Services
             {
                 ContainerMetricsApiModel result = null;
                 const ulong privateBytes = 7654;
+                const ulong cpuUsage = 4321;
 
                 before = () => mockContainer.Setup(x => x.GetInfo()).Returns(new ContainerInfo
                 {
                     MemoryStat = new ContainerMemoryStat
                     {
                         PrivateBytes = privateBytes
+                    },
+                    CpuStat = new ContainerCpuStat
+                    {
+                        TotalProcessorTime = new TimeSpan(0,0,0,0,(int)cpuUsage)
                     }
                 });
 
@@ -100,6 +106,11 @@ namespace Containerizer.Tests.Specs.Services
                 it["returns memory metrics about the container"] = () =>
                 {
                     result.MemoryStat.TotalBytesUsed.should_be(privateBytes);
+                };
+
+                it["returns cpu usage metrics about the container"] = () =>
+                {
+                    result.CPUStat.Usage.should_be(cpuUsage);
                 };
 
                 context["when the container does not exist"] = () =>

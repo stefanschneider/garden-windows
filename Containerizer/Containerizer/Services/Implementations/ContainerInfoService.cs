@@ -53,11 +53,17 @@ namespace Containerizer.Services.Implementations
 
             var info = container.GetInfo();
 
+           // info.CpuStat.TotalProcessorTime
+
             return new ContainerMetricsApiModel
             {
                 MemoryStat = new ContainerMemoryStatApiModel
                 {
                    TotalBytesUsed = info.MemoryStat.PrivateBytes
+                },
+                CPUStat = new ContainerCPUStatApiModel
+                {
+                    Usage = (ulong)info.CpuStat.TotalProcessorTime.TotalMilliseconds
                 }
             };
         }

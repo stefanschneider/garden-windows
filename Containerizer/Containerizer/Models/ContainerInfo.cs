@@ -51,10 +51,16 @@ namespace Containerizer.Models
     public class ContainerMetricsApiModel
     {
         public ContainerMemoryStatApiModel MemoryStat { get; set; }
+        public ContainerCPUStatApiModel CPUStat { get; set; }
     }
 
     public class ContainerMemoryStatApiModel
     {
         public ulong TotalBytesUsed;
+    }
+
+    public class ContainerCPUStatApiModel
+    {
+        public ulong Usage;
     }
 }

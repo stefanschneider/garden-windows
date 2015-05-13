@@ -43,19 +43,20 @@ var _ = Describe("Metrics", func() {
 			Expect(err).ShouldNot(HaveOccurred())
 		})
 
-		It("returns memory stats", func() {
+		It("returns cpu & memory stats", func() {
 			buf := make([]byte, 0, 1024*1024)
 			stdout := bytes.NewBuffer(buf)
 
 			process, err := container.Run(garden.ProcessSpec{
 				Path: "bin/consume.exe",
-				Args: []string{"memory", "64"},
+				Args: []string{"memory", "16"},
 			}, garden.ProcessIO{Stdout: stdout})
 			Expect(err).ShouldNot(HaveOccurred())
 
 			metrics, err := container.Metrics()
 			Expect(err).ToNot(HaveOccurred())
 			Expect(metrics.MemoryStat.TotalBytesUsed).To(BeNumerically(">", 0))
+			Expect(metrics.CPUStat.Usage).To(BeNumerically(">", 0))
 
 			process.Wait()
 		})
