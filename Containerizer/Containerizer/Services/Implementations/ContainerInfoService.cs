@@ -42,5 +42,21 @@ namespace Containerizer.Services.Implementations
                 ExternalIP = externalIP.ExternalIP(),
             };
         }
+
+        public ContainerMetricsApiModel GetMetricsByHandle(string handle)
+        {
+            var container = containerService.GetContainerByHandle(handle);
+            if (container == null)
+            {
+                return null;
+            }
+
+            var info = container.GetInfo();
+
+            return new ContainerMetricsApiModel
+            {
+                MemoryStat = info.MemoryStat
+            };
+        }
     }
 }

@@ -1,14 +1,7 @@
-﻿using System;
-using System.Collections.Generic;
-using System.Linq;
-using System.Text;
-using System.Threading.Tasks;
+﻿using System.Collections.Generic;
 using Moq;
 using NSpec;
-using Containerizer.Controllers;
-using System.Web.Http;
 using Containerizer.Models;
-using System.Web.Http.Results;
 using IronFrame;
 using Containerizer.Services.Interfaces;
 using Containerizer.Services.Implementations;
@@ -19,37 +12,39 @@ namespace Containerizer.Tests.Specs.Services
     {
         private void describe_()
         {
-            describe[Controller.Index] = () =>
+            Mock<IContainerService> mockContainerService = null;
+            string handle = "container-handle";
+            ContainerInfoService service = null;
+            Mock<IContainer> mockContainer = null;
+            Mock<IExternalIP>  mockExternalIP = null;
+
+            before = () =>
             {
-                Mock<IContainerService> mockContainerService = null;
-                Mock<IExternalIP> mockExternalIP = null;
-                string handle = "container-handle";
-                ContainerInfoService service = null;
+                mockContainer = new Mock<IContainer>();
+                mockContainerService = new Mock<IContainerService>();
+                mockContainerService.Setup(x => x.GetContainerByHandle(handle))
+                    .Returns(mockContainer.Object);
+                mockExternalIP = new Mock<IExternalIP>();
+                service = new ContainerInfoService(mockContainerService.Object, mockExternalIP.Object);
+            };
+
+            describe["GetInfoByHandle"] = () =>
+            {
                 ContainerInfoApiModel result = null;
                 int expectedHostPort = 1337;
                 string expectedExternalIP = "10.11.12.13";
 
                 before = () =>
                 {
-                    var mockContainer = new Mock<IContainer>();
-                    mockContainer.Setup(x => x.GetInfo()).Returns(
-                        new ContainerInfo
+                    mockContainer.Setup(x => x.GetInfo()).Returns(new ContainerInfo
+                    {
+                        ReservedPorts = new List<int> { expectedHostPort },
+                        Properties = new Dictionary<string, string>
                         {
-                            ReservedPorts = new List<int> { expectedHostPort },
-                            Properties = new Dictionary<string, string>
-                            {
-                                {"Keymaster", "Gatekeeper"}
-                            }
-                        });
-
-                    mockContainerService = new Mock<IContainerService>();
-                    mockContainerService.Setup(x => x.GetContainerByHandle(handle))
-                        .Returns(mockContainer.Object);
-
-                    mockExternalIP = new Mock<IExternalIP>();
+                            {"Keymaster", "Gatekeeper"}
+                        }
+                    });
                     mockExternalIP.Setup(x => x.ExternalIP()).Returns(expectedExternalIP);
-
-                    service = new ContainerInfoService(mockContainerService.Object, mockExternalIP.Object);
                 };
 
                 act = () =>
@@ -78,11 +73,38 @@ namespace Containerizer.Tests.Specs.Services
 
                 context["when the container does not exist"] = () =>
                 {
-                    before = () =>
+                    before = () => mockContainerService.Setup(x => x.GetContainerByHandle(handle)).Returns(null as IContainer);
+
+                    it["returns not found"] = () =>
                     {
-                        mockContainerService.Setup(x => x.GetContainerByHandle(handle))
-                       .Returns((IContainer)null);
+                        result.should_be_null();
                     };
+                };
+            };
+
+            describe["GetMetricsByHandle"] = () =>
+            {
+                ContainerMetricsApiModel result = null;
+                const ulong privateBytes = 7654;
+
+                before = () => mockContainer.Setup(x => x.GetInfo()).Returns(new ContainerInfo
+                {
+                    MemoryStat = new ContainerMemoryStat
+                    {
+                        PrivateBytes = privateBytes
+                    }
+                });
+
+                 act = () => result = service.GetMetricsByHandle(handle);
+
+                it["returns memory metrics about the container"] = () =>
+                {
+                    result.MemoryStat.PrivateBytes.should_be(privateBytes);
+                };
+
+                context["when the container does not exist"] = () =>
+                {
+                    before = () => mockContainerService.Setup(x => x.GetContainerByHandle(handle)).Returns(null as IContainer);
 
                     it["returns not found"] = () =>
                     {

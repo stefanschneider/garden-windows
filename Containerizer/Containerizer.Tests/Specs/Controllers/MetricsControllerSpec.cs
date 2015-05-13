@@ -8,6 +8,7 @@ using System.Net.Http;
 using System.Threading;
 using System.Web.Http;
 using Containerizer.Controllers;
+using Containerizer.Models;
 using Containerizer.Services.Interfaces;
 using Moq;
 using NSpec;
@@ -22,36 +23,30 @@ namespace Containerizer.Tests.Specs.Controllers
     {
         private void describe_()
         {
-            Mock<IContainerService> mockContainerService = null;
-            Mock<IContainer> mockContainer = null;
+            Mock<IContainerInfoService> mockContainerInfoService = null;
             MetricsController metricsController = null;
             string containerHandle = null;
             const ulong privateBytes = 28;
-
+            ContainerMetricsApiModel containerMetrics = null;
             before = () =>
             {
-                mockContainerService = new Mock<IContainerService>();
-                mockContainer = new Mock<IContainer>();
-                metricsController = new MetricsController(mockContainerService.Object)
+                mockContainerInfoService = new Mock<IContainerInfoService>();
+                metricsController = new MetricsController(mockContainerInfoService.Object)
                 {
                     Configuration = new HttpConfiguration(),
                     Request = new HttpRequestMessage()
                 };
                 containerHandle = Guid.NewGuid().ToString();
-             
-                mockContainerService.Setup(x => x.GetContainerByHandle(containerHandle))
-                        .Returns(() =>
-                        {
-                            return mockContainer != null ? mockContainer.Object : null;
-                        });
-
-                mockContainer.Setup(x => x.GetInfo()).Returns(new ContainerInfo
+                containerMetrics = new ContainerMetricsApiModel
                 {
                     MemoryStat = new ContainerMemoryStat
                     {
                         PrivateBytes = privateBytes
                     }
-                });
+                };
+
+                mockContainerInfoService.Setup(x => x.GetMetricsByHandle(containerHandle))
+                    .Returns(() => containerMetrics);
             };
 
             describe[Controller.Show] = () =>
@@ -67,13 +62,13 @@ namespace Containerizer.Tests.Specs.Controllers
 
                 it["returns the container metrics as a json"] = () =>
                 {
-                    var message = result.should_cast_to<JsonResult<ContainerMetrics>>();
-                    message.Content.MemoryStat.PrivateBytes.should_be(privateBytes);
+                    var message = result.should_cast_to<JsonResult<ContainerMetricsApiModel>>();
+                    message.Content.should_be(containerMetrics);
                 };
 
                 context["when the container does not exist"] = () =>
                 {
-                    before = () => mockContainer = null;
+                    before = () => containerMetrics = null;
 
                     it["returns a 404"] = () =>
                     {

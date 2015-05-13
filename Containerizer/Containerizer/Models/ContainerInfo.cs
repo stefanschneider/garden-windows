@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Web;
+using IronFrame;
 
 namespace Containerizer.Models
 {
@@ -44,5 +45,11 @@ namespace Containerizer.Models
         public List<PortMappingApiModel> MappedPorts;
         public Dictionary<string, string> Properties;
         public string ExternalIP;
+    }
+
+
+    public class ContainerMetricsApiModel
+    {
+        public ContainerMemoryStat MemoryStat { get; set; }
     }
 }

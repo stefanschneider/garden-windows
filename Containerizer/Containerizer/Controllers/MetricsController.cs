@@ -17,36 +17,23 @@ namespace Containerizer.Controllers
 {
     public class MetricsController : ApiController
     {
-        private readonly IContainerService _containerService;
+        private readonly IContainerInfoService containerInfoService;
 
-        public MetricsController(IContainerService containerService)
+        public MetricsController(IContainerInfoService containerInfoService)
         {
-            this._containerService = containerService;
+            this.containerInfoService = containerInfoService;
         }
 
         [Route("api/containers/{handle}/metrics")]
         [HttpGet]
         public IHttpActionResult Show(string handle)
         {
-            var container = _containerService.GetContainerByHandle(handle);
-
-            if (container == null)
-                return
-                    ResponseMessage(Request.CreateResponse(System.Net.HttpStatusCode.NotFound,
-                        string.Format("container does not exist: {0}", handle)));
-
-            var info = container.GetInfo();
-            var metrics = new ContainerMetrics
+            var info = containerInfoService.GetMetricsByHandle(handle);
+            if (info == null)
             {
-                MemoryStat = info.MemoryStat
-            };
-
-            return Json(metrics);
+                return ResponseMessage(Request.CreateResponse(System.Net.HttpStatusCode.NotFound, string.Format("container does not exist: {0}", handle)));
+            }
+            return Json(info);
         }
-    }
-
-    public class ContainerMetrics
-    {
-        public ContainerMemoryStat MemoryStat { get; set; }
     }
 }
