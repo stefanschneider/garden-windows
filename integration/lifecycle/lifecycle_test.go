@@ -2,6 +2,9 @@ package lifecycle
 
 import (
 	"bytes"
+	"fmt"
+	"io/ioutil"
+	"net/http"
 	"os"
 	"time"
 
@@ -76,6 +79,39 @@ var _ = Describe("Lifecycle", func() {
 			_, err := client.Create(garden.ContainerSpec{Handle: c.Handle()})
 			Expect(err).To(HaveOccurred())
 			Expect(err.Error()).To(Equal("handle already exists: " + c.Handle()))
+		})
+	})
+
+	Describe("running a non IIS/HWC web server", func() {
+		FIt("works", func() {
+			port, _, err := c.NetIn(8080, 8080)
+
+			tarFile, err := os.Open("../bin/webapp.tgz")
+			Expect(err).ShouldNot(HaveOccurred())
+			defer tarFile.Close()
+
+			err = c.StreamIn("bin", tarFile)
+			Expect(err).ShouldNot(HaveOccurred())
+			_, err = c.Run(garden.ProcessSpec{
+				Path: "bin/webapp.exe",
+				Env:  []string{fmt.Sprintf("PORT=%d", port)},
+			}, garden.ProcessIO{})
+			Expect(err).ShouldNot(HaveOccurred())
+
+			curl := func() string {
+				response, err := http.Get(fmt.Sprintf("http://localhost:%d", port))
+				if err != nil {
+					return ""
+				}
+				defer response.Body.Close()
+				bytes, err := ioutil.ReadAll(response.Body)
+				if err != nil {
+					return ""
+				}
+				return string(bytes)
+			}
+
+			Eventually(curl).Should(Equal("foo"))
 		})
 	})
 })
