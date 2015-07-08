@@ -78,6 +78,7 @@ namespace Containerizer.Controllers
             {
                 Handle = spec.Handle,
                 Properties = spec.Properties,
+                Environment = ContainerService.EnvsFromList(spec.Env)
             };
 
             try
