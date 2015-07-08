@@ -47,7 +47,7 @@ namespace Containerizer.Tests.Specs.Features
                     client = process.GetClient();
                 };
 
-                context["when I post a request"] = () =>
+                context["when I post a request without env vars"] = () =>
                 {
                     string handle = null;
                     string propertyKey = "awesome";
@@ -59,7 +59,7 @@ namespace Containerizer.Tests.Specs.Features
                         Task<HttpResponseMessage> postTask = client.PostAsync("/api/containers",
                             new StringContent(
                                 "{\"Handle\": \"" + handle + "\", \"Properties\":{\"" + propertyKey + "\":\"" +
-                                propertyValue + "\"}}", Encoding.UTF8, "application/json"));
+                                propertyValue + "\"}, Env: []}", Encoding.UTF8, "application/json"));
                         postTask.Wait();
                         HttpResponseMessage postResult = postTask.Result;
                         Task<string> readTask = postResult.Content.ReadAsStringAsync();
