@@ -79,3 +79,11 @@ func StopGarden(process ifrit.Process, client garden.Client) {
 	process.Signal(syscall.SIGKILL)
 	Eventually(process.Wait(), 10).Should(Receive())
 }
+
+func AssertProcessExitsWith(expectedExitCode int, f func() (garden.Process, error)) {
+	process, err := f()
+	Expect(err).ShouldNot(HaveOccurred())
+	actualExitCode, err := process.Wait()
+	Expect(err).ShouldNot(HaveOccurred())
+	Expect(actualExitCode).To(Equal(expectedExitCode))
+}

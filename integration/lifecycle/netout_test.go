@@ -6,11 +6,12 @@ import (
 	"os"
 
 	"github.com/cloudfoundry-incubator/garden"
+	"github.com/cloudfoundry-incubator/garden-windows/integration/helpers"
 	. "github.com/onsi/ginkgo"
 	. "github.com/onsi/gomega"
 )
 
-var _ = Describe("NetOut", func() {
+var _ = FDescribe("NetOut", func() {
 	var c garden.Container
 	var err error
 
@@ -58,20 +59,32 @@ var _ = Describe("NetOut", func() {
 	}
 
 	Describe("netout", func() {
-		Describe("when the All protocol is used", func() {
-			It("allow both tcp and udp connections", func() {
-				var dnsAndHttpPort uint16 = 53
+		FDescribe("when the All protocol is used", func() {
+			FIt("allow both tcp and udp connections", func() {
+				var tcpPort uint16 = 80
+				var udpPort uint16 = 53
+				func testConnection := func(protocol, address string, port uint16) (Process, error) {
+					return c.Run(garden.ProcessSpec{
+						Path: "bin/connect_to_remote_url.exe",
+						Env: []string{
+							fmt.Sprintf("PROTOCOL=%v", protocol),
+							fmt.Sprintf("ADDRESS=%v:%v", address, port),
+						},
+					}, garden.ProcessIO{}))
+				}
 
-				openPort(garden.ProtocolAll, dnsAndHttpPort, "")
+				helpers.AssertProcessExitsWith(0, func() testConnection("tcp", "74.125.226.164", tcpPort))
+				openPort(garden.ProtocolAll, tcpPort, "")
+				helpers.AssertProcessExitsSuccessfully(testConnection("tcp", "74.125.226.164", tcpPort))
 
-				process, err := c.Run(garden.ProcessSpec{
+				openPort(garden.ProtocolAll, udpPort, "")
+				helpers.AssertProcessExitsSuccessfully(c.Run(garden.ProcessSpec{
 					Path: "bin/connect_to_remote_url.exe",
-					Env:  []string{fmt.Sprintf("URL=%v", "http://portquiz.net:53")},
-				}, garden.ProcessIO{})
-				Expect(err).ShouldNot(HaveOccurred())
-				exitCode, err := process.Wait()
-				Expect(err).ShouldNot(HaveOccurred())
-				Expect(exitCode).To(Equal(0))
+					Env: []string{
+						"PROTOCOL=udp",
+						fmt.Sprintf("ADDRESS=%v:%v", "8.8.8.8", udpPort),
+					},
+				}, garden.ProcessIO{}))
 			})
 		})
 
@@ -148,7 +161,7 @@ var _ = Describe("NetOut", func() {
 	Describe("outbound udp traffic", func() {
 		It("can be allowed by whitelisting udp ports", func() {
 			openPort(garden.ProtocolUDP, 53, "")
-			openPort(garden.ProtocolTCP, 9090, "")
+			openPort(garden.ProtocolTCP, 80, "")
 
 			process, err := c.Run(garden.ProcessSpec{
 				Path: "bin/connect_to_remote_url.exe",
