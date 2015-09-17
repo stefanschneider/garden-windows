@@ -37,13 +37,11 @@ namespace Containerizer.Services.Implementations
                 var exitCode = process.WaitForExit();
                 websocket.SendEvent("close", exitCode.ToString());
                 websocket.Flush();
-                websocket.Close(System.Net.WebSockets.WebSocketCloseStatus.NormalClosure, "process finished");
             }
-            catch (Exception e)
+            catch (Exception)
             {
                 websocket.SendEvent("close", "-1");
                 websocket.Flush();
-                websocket.Close(System.Net.WebSockets.WebSocketCloseStatus.InternalServerError, e.Message);
             }
         }
 
