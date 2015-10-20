@@ -65,8 +65,7 @@ bomber.Create(backend, container)
 func (dotNetBackend *dotNetBackend) Create(containerSpec garden.ContainerSpec) (garden.Container, error) {
 	var returnedContainer createContainerResponse
 	err := dotNetBackend.client.Post("/api/containers", containerSpec, &returnedContainer)
-	netContainer := container.NewContainer(dotNetBackend.client, returnedContainer.Handle, dotNetBackend.logger)
-	netContainer.SetGraceTime(containerSpec.GraceTime)
+	netContainer := container.NewContainer(dotNetBackend.client, returnedContainer.Handle, dotNetBackend.logger, containerSpec.GraceTime)
 	return netContainer, err
 }
 
@@ -90,13 +89,25 @@ func (dotNetBackend *dotNetBackend) Containers(props garden.Properties) ([]garde
 	var ids []string
 	err = dotNetBackend.client.Get(u.String(), &ids)
 	for _, containerId := range ids {
-		containers = append(containers, container.NewContainer(dotNetBackend.client, containerId, dotNetBackend.logger))
+		containerObj, err := dotNetBackend.Lookup(containerId)
+		if err != nil {
+			return nil, err
+		}
+		
+		containers = append(containers, containerObj)
 	}
 	return containers, err
 }
 
 func (dotNetBackend *dotNetBackend) Lookup(handle string) (garden.Container, error) {
-	netContainer := container.NewContainer(dotNetBackend.client, handle, dotNetBackend.logger)
+	url := fmt.Sprintf("/api/containers/%s/grace_time", handle)
+	graceTime := container.GraceTimePorperty{}
+	err := dotNetBackend.client.Get(url, &graceTime)
+	if err != nil {
+		return nil, err
+	}
+	
+	netContainer := container.NewContainer(dotNetBackend.client, handle, dotNetBackend.logger, graceTime.GraceTime)
 	return netContainer, nil
 }
 
