@@ -17,6 +17,13 @@ namespace Containerizer.Models
             get;
             set;
         }
+
+        public long? GraceTime
+        {
+            get;
+            set;
+        }
+
         public Dictionary<string, string> Properties
         {
             get;
