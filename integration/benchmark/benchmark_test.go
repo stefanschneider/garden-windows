@@ -11,7 +11,7 @@ var _ = Describe("Benchmark", func() {
 	var c garden.Container
 	var err error
 
-	JustBeforeEach(func() {
+	BeforeEach(func() {
 		client = startGarden()
 		c, err = client.Create(garden.ContainerSpec{})
 		Expect(err).ToNot(HaveOccurred())
@@ -48,6 +48,37 @@ var _ = Describe("Benchmark", func() {
 
 			Expect(runtime.Seconds()).Should(BeNumerically("<", 300), "StreamIn() shouldn't take too long.")
 		}, 10)
+
+	})
+
+	Describe("Container Metrics", func() {
+		BeforeEach(func() {
+			for _, f := range []string{"../bin/loop.tgz", "../bin/launcher.tgz"} {
+				tarFile, err := os.Open(f)
+				Expect(err).ShouldNot(HaveOccurred())
+				defer tarFile.Close()
+
+				err = c.StreamIn(garden.StreamInSpec{Path: "bin", TarStream: tarFile})
+				Expect(err).ShouldNot(HaveOccurred())
+			}
+
+			_, err := c.Run(garden.ProcessSpec{
+				Path: "bin/launcher.exe",
+				Args: []string{"bin/loop.exe"},
+			}, garden.ProcessIO{})
+			Expect(err).ShouldNot(HaveOccurred())
+		})
+
+		Measure("it should get container metrics fast", func(b Benchmarker) {
+			runtime := b.Time("runtime", func() {
+				for i := 1; i < 100; i++ {
+					_, err := c.Metrics()
+					Expect(err).ToNot(HaveOccurred())
+				}
+			})
+
+			Expect(runtime.Seconds()).Should(BeNumerically("<", 10), "StreamIn() shouldn't take too long.")
+		}, 3)
 
 	})
 })
