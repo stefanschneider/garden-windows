@@ -12,6 +12,8 @@ using Moq;
 using NSpec;
 using SharpCompress.Archive;
 using SharpCompress.Reader;
+using System.Reflection;
+using Containerizer.Tests.Properties;
 
 #endregion
 
@@ -23,6 +25,18 @@ namespace Containerizer.Tests.Specs.Services
         private TarStreamService tarStreamService;
         private string tmpDir;
         private string outputDir;
+
+        private static string TarArchiverPath(string filename)
+        {
+            var uri = new Uri(Assembly.GetExecutingAssembly().CodeBase);
+            return Path.Combine(Path.GetDirectoryName(uri.LocalPath), filename);
+        }
+
+        private void before_all()
+        {
+            File.WriteAllBytes(TarArchiverPath("tar.exe"), Resources.bsdtar);
+            File.WriteAllBytes(TarArchiverPath("zlib1.dll"), Resources.zlib1);
+        }
 
         private void before_each()
         {

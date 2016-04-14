@@ -69,7 +69,7 @@ func (server *TestWebSocketServer) createWebSocketHandler(containerId string) {
 				if websocketError, ok := err.(*websocket.CloseError); ok {
 					server.closeError = websocketError
 				}
-				continue
+				break
 			}
 			server.events = append(server.events, streamEvent)
 			if streamEvent.MessageType == "run" {
