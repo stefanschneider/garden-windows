@@ -20,7 +20,7 @@ import (
 	"github.com/tedsuo/ifrit/grouper"
 
 	garden_runner "github.com/cloudfoundry/garden-windows/integration/runner"
-	"github.com/cloudfoundry/loggregator/src/bitbucket.org/kardianos/osext"
+	"github.com/kardianos/osext"
 )
 
 func BuildContainerizer() string {

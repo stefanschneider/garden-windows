@@ -10,7 +10,7 @@ import (
 	"strconv"
 	"time"
 
-	"github.com/cloudfoundry/loggregator/src/bitbucket.org/kardianos/osext"
+	"github.com/kardianos/osext"
 )
 
 type ArrayBytes []byte
