@@ -15,8 +15,6 @@ namespace Containerizer.Services.Implementations
 
         public void Run(Controllers.IWebSocketEventSender websocket, Models.ApiProcessSpec apiProcessSpec)
         {
-            container.StartGuard();
-
             var processSpec = NewProcessSpec(apiProcessSpec);
             CopyProcessSpecEnvVariables(processSpec, apiProcessSpec.Env);
             OverrideEnvPort(processSpec);
